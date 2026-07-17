@@ -313,6 +313,40 @@
                 <div class="label">客户数量</div>
                 <div class="value" id="customerCount">0</div>
             </div>
+            <div class="stat-card" style="cursor: pointer;" onclick="toggleSettings()">
+                <div class="label">⚙️ 设置</div>
+                <div class="value" id="settingsStatus">配置</div>
+            </div>
+        </div>
+
+        <div id="settingsPanel" style="display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <h3 style="margin-bottom: 15px; color: #333;">GitHub 配置（数据将保存到 GitHub 仓库）</h3>
+            <div class="form-row" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label>GitHub Token</label>
+                    <input type="password" id="githubToken" placeholder="输入你的 GitHub Token" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <label>仓库所有者 (Owner)</label>
+                    <input type="text" id="githubOwner" placeholder="用户名" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <label>仓库名称 (Repo)</label>
+                    <input type="text" id="githubRepo" placeholder="仓库名" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 100px;">
+                    <label>分支 (Branch)</label>
+                    <input type="text" id="githubBranch" placeholder="main" value="main" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="saveSettings()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">保存配置</button>
+                <button onclick="testConnection()" style="padding: 8px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">测试连接</button>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    🔒 Token 仅保存在本地浏览器，不会上传到服务器。<br>
+                    📝 创建 Token: <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings</a> → Fine-grained tokens → 勾选 "Contents" 的 "Read and write" 权限
+                </p>
+            </div>
         </div>
 
         <div class="filter-bar">
@@ -473,26 +507,114 @@
 
     <script>
         let data = [];
+        const DATA_FILE_PATH = 'data.json';
+
+        function getGitHubConfig() {
+            return {
+                token: localStorage.getItem('githubToken'),
+                owner: localStorage.getItem('githubOwner'),
+                repo: localStorage.getItem('githubRepo'),
+                branch: localStorage.getItem('githubBranch') || 'main'
+            };
+        }
+
+        function hasGitHubConfig() {
+            const config = getGitHubConfig();
+            return config.token && config.owner && config.repo;
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function saveSettings() {
+            const token = document.getElementById('githubToken').value;
+            const owner = document.getElementById('githubOwner').value;
+            const repo = document.getElementById('githubRepo').value;
+            const branch = document.getElementById('githubBranch').value;
+
+            localStorage.setItem('githubToken', token);
+            localStorage.setItem('githubOwner', owner);
+            localStorage.setItem('githubRepo', repo);
+            localStorage.setItem('githubBranch', branch);
+
+            document.getElementById('settingsStatus').textContent = hasGitHubConfig() ? '已配置' : '配置';
+            showToast('配置保存成功', 'success');
+        }
+
+        async function testConnection() {
+            if (!hasGitHubConfig()) {
+                showToast('请先填写完整的GitHub配置', 'error');
+                return;
+            }
+            try {
+                showToast('正在测试连接...', 'success');
+                await fetchGitHubData();
+                showToast('连接测试成功！', 'success');
+            } catch (error) {
+                showToast('连接测试失败: ' + error.message, 'error');
+            }
+        }
+
+        async function fetchGitHubData() {
+            const config = getGitHubConfig();
+            const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${DATA_FILE_PATH}?ref=${config.branch}`;
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${config.token}`
+                }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('文件不存在，请先创建data.json');
+                }
+                throw new Error('HTTP ' + response.status);
+            }
+            
+            const result = await response.json();
+            return JSON.parse(atob(result.content));
+        }
 
         async function loadData() {
             try {
-                const savedData = localStorage.getItem('robotSampleData');
-                if (savedData) {
-                    data = JSON.parse(savedData);
-                } else {
-                    const response = await fetch('data.json');
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                if (hasGitHubConfig()) {
+                    try {
+                        data = await fetchGitHubData();
+                        localStorage.setItem('robotSampleData', JSON.stringify(data));
+                        document.getElementById('settingsStatus').textContent = '已配置';
+                    } catch (gitHubError) {
+                        console.warn('GitHub API加载失败，使用本地缓存:', gitHubError);
+                        const savedData = localStorage.getItem('robotSampleData');
+                        if (savedData) {
+                            data = JSON.parse(savedData);
+                            showToast('使用本地缓存数据', 'success');
+                        } else {
+                            throw gitHubError;
+                        }
                     }
-                    data = await response.json();
-                    localStorage.setItem('robotSampleData', JSON.stringify(data));
+                } else {
+                    const savedData = localStorage.getItem('robotSampleData');
+                    if (savedData) {
+                        data = JSON.parse(savedData);
+                    } else {
+                        const response = await fetch('data.json');
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        data = await response.json();
+                        localStorage.setItem('robotSampleData', JSON.stringify(data));
+                    }
+                    document.getElementById('settingsStatus').textContent = '未配置';
                 }
                 renderTable();
                 updateStats();
                 populateFilters();
             } catch (error) {
                 console.error('加载数据失败:', error);
-                showToast('加载数据失败', 'error');
+                showToast('加载数据失败: ' + error.message, 'error');
             }
         }
 
@@ -670,8 +792,70 @@
             populateFilters();
         });
 
-        function saveData() {
+        async function getFileSha() {
+            const config = getGitHubConfig();
+            const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${DATA_FILE_PATH}?ref=${config.branch}`;
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${config.token}`
+                }
+            });
+            
+            if (response.status === 404) {
+                return null;
+            }
+            
+            if (!response.ok) {
+                throw new Error('获取文件SHA失败');
+            }
+            
+            const result = await response.json();
+            return result.sha;
+        }
+
+        async function saveData() {
             localStorage.setItem('robotSampleData', JSON.stringify(data, null, 2));
+            
+            if (!hasGitHubConfig()) {
+                return;
+            }
+            
+            try {
+                const config = getGitHubConfig();
+                const content = JSON.stringify(data, null, 2);
+                const sha = await getFileSha();
+                const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${DATA_FILE_PATH}`;
+                
+                const body = {
+                    message: 'Update sample data',
+                    content: btoa(unescape(encodeURIComponent(content))),
+                    branch: config.branch
+                };
+                
+                if (sha) {
+                    body.sha = sha;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.message || '保存失败');
+                }
+                
+                showToast('数据已同步到GitHub', 'success');
+            } catch (error) {
+                console.error('保存到GitHub失败:', error);
+                showToast('保存到GitHub失败: ' + error.message, 'error');
+            }
         }
 
         function exportData() {
@@ -743,7 +927,18 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadData);
+        function initSettings() {
+            document.getElementById('githubToken').value = localStorage.getItem('githubToken') || '';
+            document.getElementById('githubOwner').value = localStorage.getItem('githubOwner') || '';
+            document.getElementById('githubRepo').value = localStorage.getItem('githubRepo') || '';
+            document.getElementById('githubBranch').value = localStorage.getItem('githubBranch') || 'main';
+            document.getElementById('settingsStatus').textContent = hasGitHubConfig() ? '已配置' : '配置';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSettings();
+            loadData();
+        });
     </script>
 </body>
 </html>
