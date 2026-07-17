@@ -575,7 +575,8 @@
             }
             
             const result = await response.json();
-            return JSON.parse(atob(result.content));
+            const decodedContent = decodeURIComponent(escape(atob(result.content)));
+            return JSON.parse(decodedContent);
         }
 
         async function loadData() {
