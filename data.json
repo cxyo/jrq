@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "time": "2026-07-08",
+    "customer": "宝马",
+    "product": "车门",
+    "requirement": "去毛刺",
+    "robot": "发那科",
+    "power": "电动磨头",
+    "grinder": "P80",
+    "forceControl": 30,
+    "selfWeight": 10,
+    "codeForceControl": 30,
+    "forceControlMotor": "400MHZ",
+    "speed": "300mm/s",
+    "effect": "ok"
+  },
+  {
+    "id": 2,
+    "time": "2026-07-10",
+    "customer": "小米",
+    "product": "木盒子",
+    "requirement": "磨皮",
+    "robot": "发那科",
+    "power": "气动磨头",
+    "grinder": "P300",
+    "forceControl": 30,
+    "selfWeight": 10,
+    "codeForceControl": 20,
+    "forceControlMotor": "无",
+    "speed": "200mm/s",
+    "effect": "ok"
+  }
+]

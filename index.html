@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工业机器人打样数据记录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card .label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .filter-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-bar select {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .filter-bar button {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .filter-bar button:hover {
+            background: #5a6fd6;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .effect-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .effect-badge.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        .effect-badge.bad {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .effect-badge.good {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-edit {
+            background: #17a2b8;
+            color: white;
+            margin-right: 5px;
+        }
+        .btn-edit:hover {
+            background: #138496;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        .btn-add {
+            background: #28a745;
+            color: white;
+            padding: 10px 24px;
+            font-size: 14px;
+            display: block;
+            margin: 20px auto;
+        }
+        .btn-add:hover {
+            background: #218838;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow: auto;
+        }
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .modal-content h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #444;
+            font-size: 14px;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-submit {
+            background: #667eea;
+            color: white;
+        }
+        .btn-submit:hover {
+            background: #5a6fd6;
+        }
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            z-index: 2000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast.success {
+            background: #28a745;
+        }
+        .toast.error {
+            background: #dc3545;
+        }
+        @media (max-width: 768px) {
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+            .form-row {
+                flex-direction: column;
+            }
+            table {
+                font-size: 11px;
+            }
+            th, td {
+                padding: 8px 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>工业机器人打样数据记录</h1>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="label">总打样次数</div>
+                <div class="value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">最优效果记录</div>
+                <div class="value" id="bestEffectCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">客户数量</div>
+                <div class="value" id="customerCount">0</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <select id="filterCustomer" onchange="filterTable()">
+                <option value="">全部客户</option>
+            </select>
+            <select id="filterRobot" onchange="filterTable()">
+                <option value="">全部机器人</option>
+            </select>
+            <select id="filterEffect" onchange="filterTable()">
+                <option value="">全部效果</option>
+                <option value="ok">OK</option>
+                <option value="good">Good</option>
+                <option value="bad">Bad</option>
+            </select>
+            <button onclick="resetFilter()">重置</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>时间</th>
+                        <th>客户</th>
+                        <th>产品</th>
+                        <th>要求</th>
+                        <th>机器人</th>
+                        <th>动力</th>
+                        <th>磨头</th>
+                        <th>砂纸</th>
+                        <th>力控</th>
+                        <th>自重</th>
+                        <th>代码力控</th>
+                        <th>力控电机</th>
+                        <th>速度</th>
+                        <th>效果</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="dataBody">
+                </tbody>
+            </table>
+        </div>
+
+        <button class="btn btn-add" onclick="openModal()">+ 添加打样记录</button>
+    </div>
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">添加打样记录</h2>
+            <form id="dataForm">
+                <input type="hidden" id="editId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>时间</label>
+                        <input type="date" id="time" required>
+                    </div>
+                    <div class="form-group">
+                        <label>客户</label>
+                        <input type="text" id="customer" required placeholder="例如：宝马">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>产品</label>
+                        <input type="text" id="product" required placeholder="例如：车门">
+                    </div>
+                    <div class="form-group">
+                        <label>要求</label>
+                        <input type="text" id="requirement" required placeholder="例如：去毛刺">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>机器人</label>
+                        <select id="robot" required>
+                            <option value="">请选择</option>
+                            <option value="发那科">发那科</option>
+                            <option value="ABB">ABB</option>
+                            <option value="库卡">库卡</option>
+                            <option value="安川">安川</option>
+                            <option value="埃斯顿">埃斯顿</option>
+                            <option value="新松">新松</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>动力</label>
+                        <select id="power" required>
+                            <option value="">请选择</option>
+                            <option value="电动磨头">电动磨头</option>
+                            <option value="气动磨头">气动磨头</option>
+                            <option value="手动">手动</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>磨头</label>
+                        <input type="text" id="grinder" required placeholder="例如：P80">
+                    </div>
+                    <div class="form-group">
+                        <label>砂纸</label>
+                        <input type="text" id="sandpaper" placeholder="例如：P80">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>力控</label>
+                        <input type="number" id="forceControl" placeholder="数值">
+                    </div>
+                    <div class="form-group">
+                        <label>自重</label>
+                        <input type="number" id="selfWeight" placeholder="数值">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>代码力控</label>
+                        <input type="number" id="codeForceControl" placeholder="数值">
+                    </div>
+                    <div class="form-group">
+                        <label>力控电机</label>
+                        <input type="text" id="forceControlMotor" placeholder="例如：400MHZ">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>速度</label>
+                        <input type="text" id="speed" placeholder="例如：300mm/s">
+                    </div>
+                    <div class="form-group">
+                        <label>效果</label>
+                        <select id="effect" required>
+                            <option value="">请选择</option>
+                            <option value="ok">OK</option>
+                            <option value="good">Good</option>
+                            <option value="bad">Bad</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn-submit">提交</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        let data = [];
+
+        async function loadData() {
+            try {
+                const response = await fetch('data.json');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                data = await response.json();
+                renderTable();
+                updateStats();
+                populateFilters();
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast('加载数据失败', 'error');
+            }
+        }
+
+        function renderTable(filteredData = null) {
+            const tbody = document.getElementById('dataBody');
+            tbody.innerHTML = '';
+            const displayData = filteredData || data;
+            
+            displayData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${item.time}</td>
+                    <td>${item.customer}</td>
+                    <td>${item.product}</td>
+                    <td>${item.requirement}</td>
+                    <td>${item.robot}</td>
+                    <td>${item.power}</td>
+                    <td>${item.grinder}</td>
+                    <td>${item.sandpaper || '-'}</td>
+                    <td>${item.forceControl || '-'}</td>
+                    <td>${item.selfWeight || '-'}</td>
+                    <td>${item.codeForceControl || '-'}</td>
+                    <td>${item.forceControlMotor || '-'}</td>
+                    <td>${item.speed || '-'}</td>
+                    <td><span class="effect-badge ${item.effect}">${item.effect.toUpperCase()}</span></td>
+                    <td>
+                        <button class="btn btn-edit" onclick="editRecord(${item.id})">修改</button>
+                        <button class="btn btn-delete" onclick="deleteRecord(${item.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats() {
+            const totalCount = data.length;
+            const bestEffectCount = data.filter(item => item.effect === 'ok').length;
+            const customerCount = new Set(data.map(item => item.customer)).size;
+            
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('bestEffectCount').textContent = bestEffectCount;
+            document.getElementById('customerCount').textContent = customerCount;
+        }
+
+        function populateFilters() {
+            const customers = [...new Set(data.map(item => item.customer))];
+            const robots = [...new Set(data.map(item => item.robot))];
+            
+            const customerSelect = document.getElementById('filterCustomer');
+            const robotSelect = document.getElementById('filterRobot');
+            
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer;
+                option.textContent = customer;
+                customerSelect.appendChild(option);
+            });
+            
+            robots.forEach(robot => {
+                const option = document.createElement('option');
+                option.value = robot;
+                option.textContent = robot;
+                robotSelect.appendChild(option);
+            });
+        }
+
+        function filterTable() {
+            const customer = document.getElementById('filterCustomer').value;
+            const robot = document.getElementById('filterRobot').value;
+            const effect = document.getElementById('filterEffect').value;
+            
+            const filtered = data.filter(item => {
+                return (!customer || item.customer === customer) &&
+                       (!robot || item.robot === robot) &&
+                       (!effect || item.effect === effect);
+            });
+            
+            renderTable(filtered);
+        }
+
+        function resetFilter() {
+            document.getElementById('filterCustomer').value = '';
+            document.getElementById('filterRobot').value = '';
+            document.getElementById('filterEffect').value = '';
+            renderTable();
+        }
+
+        function openModal() {
+            document.getElementById('modalTitle').textContent = '添加打样记录';
+            document.getElementById('dataForm').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('time').valueAsDate = new Date();
+            document.getElementById('myModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('myModal').style.display = 'none';
+        }
+
+        function editRecord(id) {
+            const item = data.find(item => item.id === id);
+            if (item) {
+                document.getElementById('modalTitle').textContent = '修改打样记录';
+                document.getElementById('editId').value = item.id;
+                document.getElementById('time').value = item.time;
+                document.getElementById('customer').value = item.customer;
+                document.getElementById('product').value = item.product;
+                document.getElementById('requirement').value = item.requirement;
+                document.getElementById('robot').value = item.robot;
+                document.getElementById('power').value = item.power;
+                document.getElementById('grinder').value = item.grinder;
+                document.getElementById('sandpaper').value = item.sandpaper || '';
+                document.getElementById('forceControl').value = item.forceControl || '';
+                document.getElementById('selfWeight').value = item.selfWeight || '';
+                document.getElementById('codeForceControl').value = item.codeForceControl || '';
+                document.getElementById('forceControlMotor').value = item.forceControlMotor || '';
+                document.getElementById('speed').value = item.speed || '';
+                document.getElementById('effect').value = item.effect;
+                document.getElementById('myModal').style.display = 'block';
+            }
+        }
+
+        function deleteRecord(id) {
+            if (confirm('确定要删除这条记录吗？')) {
+                data = data.filter(item => item.id !== id);
+                saveData();
+                renderTable();
+                updateStats();
+                populateFilters();
+                showToast('删除成功', 'success');
+            }
+        }
+
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const editId = document.getElementById('editId').value;
+            const newRecord = {
+                id: editId ? parseInt(editId) : Date.now(),
+                time: document.getElementById('time').value,
+                customer: document.getElementById('customer').value,
+                product: document.getElementById('product').value,
+                requirement: document.getElementById('requirement').value,
+                robot: document.getElementById('robot').value,
+                power: document.getElementById('power').value,
+                grinder: document.getElementById('grinder').value,
+                sandpaper: document.getElementById('sandpaper').value,
+                forceControl: parseInt(document.getElementById('forceControl').value) || null,
+                selfWeight: parseInt(document.getElementById('selfWeight').value) || null,
+                codeForceControl: parseInt(document.getElementById('codeForceControl').value) || null,
+                forceControlMotor: document.getElementById('forceControlMotor').value,
+                speed: document.getElementById('speed').value,
+                effect: document.getElementById('effect').value
+            };
+            
+            if (editId) {
+                const index = data.findIndex(item => item.id === parseInt(editId));
+                if (index !== -1) {
+                    data[index] = newRecord;
+                    showToast('修改成功', 'success');
+                }
+            } else {
+                data.unshift(newRecord);
+                showToast('添加成功', 'success');
+            }
+            
+            await saveData();
+            closeModal();
+            renderTable();
+            updateStats();
+            populateFilters();
+        });
+
+        async function saveData() {
+            try {
+                const response = await fetch('data.json', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data, null, 2)
+                });
+                if (!response.ok) {
+                    throw new Error('保存失败');
+                }
+            } catch (error) {
+                console.error('保存数据失败:', error);
+                showToast('保存失败，请手动保存', 'error');
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('myModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
