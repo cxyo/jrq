@@ -358,7 +358,12 @@
             </table>
         </div>
 
-        <button class="btn btn-add" onclick="openModal()">+ 添加打样记录</button>
+        <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 20px;">
+            <button class="btn btn-add" onclick="openModal()">+ 添加打样记录</button>
+            <button class="btn" style="background: #17a2b8; color: white;" onclick="exportData()">导出数据</button>
+            <button class="btn" style="background: #6c757d; color: white;" onclick="importData()">导入数据</button>
+            <button class="btn" style="background: #dc3545; color: white;" onclick="resetData()">重置数据</button>
+        </div>
     </div>
 
     <div id="myModal" class="modal">
@@ -471,11 +476,17 @@
 
         async function loadData() {
             try {
-                const response = await fetch('data.json');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                const savedData = localStorage.getItem('robotSampleData');
+                if (savedData) {
+                    data = JSON.parse(savedData);
+                } else {
+                    const response = await fetch('data.json');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    data = await response.json();
+                    localStorage.setItem('robotSampleData', JSON.stringify(data));
                 }
-                data = await response.json();
                 renderTable();
                 updateStats();
                 populateFilters();
@@ -533,6 +544,9 @@
             
             const customerSelect = document.getElementById('filterCustomer');
             const robotSelect = document.getElementById('filterRobot');
+            
+            customerSelect.innerHTML = '<option value="">全部客户</option>';
+            robotSelect.innerHTML = '<option value="">全部机器人</option>';
             
             customers.forEach(customer => {
                 const option = document.createElement('option');
@@ -656,30 +670,60 @@
             populateFilters();
         });
 
-        async function saveData() {
-            try {
-                const response = await fetch('data.json', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data, null, 2)
-                });
-                if (!response.ok) {
-                    throw new Error('保存失败');
+        function saveData() {
+            localStorage.setItem('robotSampleData', JSON.stringify(data, null, 2));
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('数据导出成功', 'success');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            if (Array.isArray(importedData)) {
+                                data = importedData;
+                                saveData();
+                                renderTable();
+                                updateStats();
+                                populateFilters();
+                                showToast('数据导入成功', 'success');
+                            } else {
+                                showToast('无效的 JSON 数据格式', 'error');
+                            }
+                        } catch (error) {
+                            console.error('导入失败:', error);
+                            showToast('导入失败，JSON 格式错误', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
                 }
-            } catch (error) {
-                console.error('保存数据失败:', error);
-                showToast('保存失败，请手动保存', 'error');
-                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'data.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+            };
+            input.click();
+        }
+
+        function resetData() {
+            if (confirm('确定要重置所有数据吗？这将恢复到默认的示例数据。')) {
+                localStorage.removeItem('robotSampleData');
+                loadData();
+                showToast('数据已重置', 'success');
             }
         }
 
